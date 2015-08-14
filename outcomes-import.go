@@ -19,14 +19,28 @@ type request struct {
 }
 
 type importable_guid struct {
-	title string `json:"title"`
-	guid  string `json:"guid"`
+	Title string `json:"title"`
+	Guid  string `json:"guid"`
+}
+
+type migration_issue struct {
+	Id               int    `json:"id"`
+	Issue_type       string `json:"issue_type"`
+	Description      string `json:"description"`
+	Error_report_url string `json:"error_report_html_url"`
+	Error_message    string `json:"error_message"`
 }
 
 type migration_status struct {
+	Id                     int               `json:"id"`
+	Workflow_state         string            `json:"workflow_state"`
+	Migration_issues_count int               `json:"migration_issues_count"`
+	Migration_issues       []migration_issue `json:"migration_issues"`
 }
 
 type new_import struct {
+	Migration_id int    `json:"migration_id"`
+	Guid         string `json:"guid"`
 }
 
 func main() {
@@ -109,31 +123,83 @@ func get_available(req request) {
 		log.Fatalln(err)
 	}
 	defer resp.Body.Close()
-  var guids []importable_guid
-  if e := json.NewDecoder(resp.Body).Decode(&guids); e != nil {
-    log.Fatalln(e)
-  }
-  print_importable_guids(guids)
-	// the old way
-	// body, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// log.Fatalln(err)
-	// }
-	// log.Println(string(body))
+	var guids []importable_guid
+	if e := json.NewDecoder(resp.Body).Decode(&guids); e != nil {
+		log.Fatalln(e)
+	}
+	print_importable_guids(guids)
 }
 
 func get_status(req request, migration_id int) {
-	log.Println("Retrieving status for migration")
+	req.body = ""
+	req.method = "GET"
+	req.endpoint = fmt.Sprintf(
+		"/api/v1/global/outcomes_import/migration_status/%d",
+		migration_id,
+	)
+
+	client, hreq := http_request(req)
+
+	log.Printf("Retrieving status for migration %d", migration_id)
+	resp, err := client.Do(hreq)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	var mstatus migration_status
+	if e := json.NewDecoder(resp.Body).Decode(&mstatus); e != nil {
+		log.Fatalln(e)
+	}
+	print_migration_status(mstatus)
 }
 
 func import_guid(req request, guid string) {
-	log.Println("Scheduling import of guid")
+	req.body = fmt.Sprintf("guid=%s", guid)
+	req.method = "POST"
+	req.endpoint = "/api/v1/global/outcomes_import/"
+
+	client, hreq := http_request(req)
+
+	log.Printf("Requesting import of GUID %s", guid)
+	resp, err := client.Do(hreq)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+
+	var nimport new_import
+	if e := json.NewDecoder(resp.Body).Decode(&nimport); e != nil {
+		log.Fatalln(e)
+	}
+	print_import_results(nimport)
 }
 
 func print_importable_guids(guids []importable_guid) {
-  log.Println(guids)
-  fmt.Printf("GUIDs available to import:\n\n")
-  for _, guid := range guids {
-    fmt.Printf("%s: %s", guid.title, guid.guid)
-  }
+	fmt.Printf("GUIDs available to import:\n\n")
+	for _, guid := range guids {
+		fmt.Printf("%s - %s\n", guid.Guid, guid.Title)
+	}
+}
+
+func print_migration_status(mstatus migration_status) {
+	fmt.Printf("\nMigration status for migration '%d':\n", mstatus.Id)
+	fmt.Printf(" - Workflow state: %s\n", mstatus.Workflow_state)
+	fmt.Printf(" - Migration issues count: %d\n", mstatus.Migration_issues_count)
+	fmt.Printf(" - Migration issues:\n")
+	for _, val := range mstatus.Migration_issues {
+		fmt.Printf("   - ID: %d\n", val.Id)
+		fmt.Printf("   - Link: %s\n", val.Error_report_url)
+		fmt.Printf("   - Issue type: %s\n", val.Issue_type)
+		fmt.Printf("   - Error message: %s\n", val.Error_message)
+		fmt.Printf("   - Description: %s\n", val.Description)
+	}
+}
+
+func print_import_results(nimport new_import) {
+	fmt.Printf(
+    "Migration for %s scheduled with migration ID %d",
+    nimport.Guid,
+    nimport.Migration_id,
+  )
 }
