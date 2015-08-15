@@ -67,7 +67,7 @@ func configFromFile() *config {
 func (c *config) writeToFile() {
 	current := configFromFile()
 	// we only want to store the API key if the user already stores it
-	if current.Apikey == "" {
+	if current == nil || current.Apikey == "" {
 		c.Apikey = ""
 	}
 	b, err := json.MarshalIndent(*c, "", "  ")
@@ -169,10 +169,14 @@ func httpRequest(req request) (*http.Client, *http.Request) {
 func printAvailable(req request) {
 	guids := getAvailable(req)
 	printImportableGuids(guids)
+	migId := 0
+	if cff := configFromFile(); cff != nil {
+		migId = cff.MigrationId
+	}
 	(&config{
 		Apikey:      req.Apikey,
 		Domain:      req.Domain,
-		MigrationId: configFromFile().MigrationId,
+		MigrationId: migId,
 	}).writeToFile()
 }
 
