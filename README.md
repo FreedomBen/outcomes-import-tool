@@ -10,9 +10,11 @@ To install:
 
 Usage is simple.  You must provide the tool with a [Canvas API key](https://canvas.instructure.com/doc/api/file.oauth.html), and then tell it what to do.  The default action is to check the status of the most recent import.  OIT knows the Migration ID of the most recent import because it saves it in a json file located at `$HOME/outcomes-import-tool.json`.
 
+You must also provide it with a Canvas domain.  For a school that has "<school-name>.instructure.com", you can simply provide the school name.  You can also simply say "localhost" if you have a local development server running on port 3000.  The domain only needs to be passed the first time you use the tool, or when you want to change domains.  OIT remembers the last domain automatically for you.
+
 Example to check status:
   
-    outcomes-import-tool --apikey="MyKey"
+    outcomes-import-tool --apikey="MyKey" --domain localhost
 
 Example to check status with specified ID of 35 (which becomes the new default)
 
