@@ -4,15 +4,19 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 )
 
+const ConfigFile string = ".outcomes-import.conf"
+
 type config struct {
-	Apikey      string
-	MigrationId int
+	Apikey      string `json:"apikey"`
+	MigrationId int    `json:"migration_id"`
+	Domain      string `json:"domain"`
 }
 
 type request struct {
@@ -37,15 +41,44 @@ type migrationIssue struct {
 }
 
 type migrationStatus struct {
-	Id                     int               `json:"id"`
-	WorkflowState         string            `json:"workflow_state"`
-	MigrationIssuesCount int               `json:"migration_issues_count"`
-	MigrationIssues       []migrationIssue `json:"migration_issues"`
+	Id                   int              `json:"id"`
+	WorkflowState        string           `json:"workflow_state"`
+	MigrationIssuesCount int              `json:"migration_issues_count"`
+	MigrationIssues      []migrationIssue `json:"migration_issues"`
 }
 
 type newImport struct {
-	Migration_id int    `json:"migration_id"`
-	Guid         string `json:"guid"`
+	MigrationId int    `json:"migration_id"`
+	Guid        string `json:"guid"`
+}
+
+func configFromFile() *config {
+	if f, err := os.Open(configFile()); err == nil {
+		var cf config
+		if err := json.NewDecoder(f).Decode(&cf); err != nil {
+			log.Fatalln("Config file json error:", err)
+		}
+		return &cf
+	} else {
+		return nil
+	}
+}
+
+func (c *config) writeToFile() {
+	current := configFromFile()
+	// we only want to store the API key if the user already stores it
+	if current.Apikey == "" {
+		c.Apikey = ""
+	}
+	b, err := json.MarshalIndent(*c, "", "  ")
+	if err != nil {
+		log.Fatalln("Error writing to", configFile())
+	}
+	ioutil.WriteFile(configFile(), b, 0700)
+}
+
+func configFile() string {
+	return fmt.Sprintf("%s/%s", os.Getenv("HOME"), ConfigFile)
 }
 
 func main() {
@@ -55,34 +88,47 @@ func main() {
 		"",
 		"The domain.  You can just say the school name if they have a vanity domain, like 'utah' for 'utah.instructure.com' or 'localhost'",
 	)
-	var status = flag.Int("status", 0, "migration ID to check status for")
+	var status = flag.Int("status", 0, "migration ID to check status")
 	var available = flag.Bool("available", false, "Check available migration IDs")
 	var guid = flag.String("guid", "", "GUID to schedule for import")
 	flag.Parse()
 
-	// if the api key and last migration id are stored, use those
+	if cf := configFromFile(); cf != nil {
+		if *apikey == "" {
+			log.Println("Using API key from config file")
+			apikey = &cf.Apikey
+		}
+		if *status == 0 {
+			log.Println("Using migration ID from config file")
+			status = &cf.MigrationId
+		}
+		if *domain == "" {
+			log.Println("Using domain from config file")
+			domain = &cf.Domain
+		}
+	}
 
 	req := request{Apikey: *apikey, Domain: *domain}
 	verifyRequest(&req)
 	req.Domain = normalizeDomain(req.Domain)
 
 	if *available {
-		getAvailable(req)
-	} else if *status != 0 {
-		getStatus(req, *status)
+		printAvailable(req)
 	} else if *guid != "" {
 		importGuid(req, *guid)
+	} else if *status != 0 {
+		getStatus(req, *status)
 	} else {
-		log.Fatalln("You didn't say whether you wanted to check available, a migration status, or schedule an import.  Not sure what to do ¯\\_(ツ)_/¯")
+		log.Fatalln("No recent migration ID, and none specified to query status on")
 	}
 }
 
 func normalizeDomain(domain string) string {
 	retval := domain
-  if domain == "localhost" {
-    return "http://localhost:3000"
-	// if we start with http then don't add it, otherwise do
-  } else if !strings.HasPrefix(retval, "http") {
+	if domain == "localhost" {
+		return "http://localhost:3000"
+		// if we start with http then don't add it, otherwise do
+	} else if !strings.HasPrefix(retval, "http") {
 		retval = fmt.Sprintf("https://%s", retval)
 		if !strings.HasSuffix(retval, "com") && !strings.HasSuffix(retval, "/") {
 			retval = fmt.Sprintf("%s.instructure.com", retval)
@@ -120,7 +166,17 @@ func httpRequest(req request) (*http.Client, *http.Request) {
 	return client, hreq
 }
 
-func getAvailable(req request) {
+func printAvailable(req request) {
+	guids := getAvailable(req)
+	printImportableGuids(guids)
+	(&config{
+		Apikey:      req.Apikey,
+		Domain:      req.Domain,
+		MigrationId: configFromFile().MigrationId,
+	}).writeToFile()
+}
+
+func getAvailable(req request) []importableGuid {
 	req.Body = ""
 	req.Method = "GET"
 	req.Endpoint = "/api/v1/global/outcomes_import/available"
@@ -136,20 +192,20 @@ func getAvailable(req request) {
 	if e := json.NewDecoder(resp.Body).Decode(&guids); e != nil {
 		log.Fatalln(e)
 	}
-	printImportableGuids(guids)
+	return guids
 }
 
-func getStatus(req request, migration_id int) {
+func getStatus(req request, migrationId int) {
 	req.Body = ""
 	req.Method = "GET"
 	req.Endpoint = fmt.Sprintf(
 		"/api/v1/global/outcomes_import/migration_status/%d",
-		migration_id,
+		migrationId,
 	)
 
 	client, hreq := httpRequest(req)
 
-	log.Printf("Retrieving status for migration %d", migration_id)
+	log.Printf("Retrieving status for migration %d", migrationId)
 	resp, err := client.Do(hreq)
 	if err != nil {
 		log.Fatalln(err)
@@ -161,9 +217,23 @@ func getStatus(req request, migration_id int) {
 		log.Fatalln(e)
 	}
 	printMigrationStatus(mstatus)
+	(&config{
+		Apikey:      req.Apikey,
+		Domain:      req.Domain,
+		MigrationId: migrationId,
+	}).writeToFile()
 }
 
 func importGuid(req request, guid string) {
+	// first check to see if we've been given a title
+	guids := getAvailable(req)
+	for _, val := range guids {
+		if val.Title == guid {
+			guid = val.Guid
+			break
+		}
+	}
+
 	req.Body = fmt.Sprintf("guid=%s", guid)
 	req.Method = "POST"
 	req.Endpoint = "/api/v1/global/outcomes_import/"
@@ -182,6 +252,11 @@ func importGuid(req request, guid string) {
 		log.Fatalln(e)
 	}
 	printImportResults(nimport)
+	(&config{
+		Apikey:      req.Apikey,
+		Domain:      req.Domain,
+		MigrationId: nimport.MigrationId,
+	}).writeToFile()
 }
 
 func printImportableGuids(guids []importableGuid) {
@@ -192,22 +267,26 @@ func printImportableGuids(guids []importableGuid) {
 }
 
 func printMigrationStatus(mstatus migrationStatus) {
-	fmt.Printf("\nMigration status for migration '%d':\n", mstatus.Id)
-	fmt.Printf(" - Workflow state: %s\n", mstatus.WorkflowState)
-	fmt.Printf(" - Migration issues count: %d\n", mstatus.MigrationIssuesCount)
-	fmt.Printf(" - Migration issues:\n")
-	for _, val := range mstatus.MigrationIssues {
-		fmt.Printf("   - ID: %d\n", val.Id)
-		fmt.Printf("   - Link: %s\n", val.ErrorReportUrl)
-		fmt.Printf("   - Issue type: %s\n", val.IssueType)
-		fmt.Printf("   - Error message: %s\n", val.ErrorMessage)
-		fmt.Printf("   - Description: %s\n", val.Description)
+	if mstatus.Id == 0 {
+		fmt.Println("\nThe server returned an error.  Are you sure that migration ID exists?")
+	} else {
+		fmt.Printf("\nMigration status for migration '%d':\n", mstatus.Id)
+		fmt.Printf(" - Workflow state: %s\n", mstatus.WorkflowState)
+		fmt.Printf(" - Migration issues count: %d\n", mstatus.MigrationIssuesCount)
+		fmt.Printf(" - Migration issues:\n")
+		for _, val := range mstatus.MigrationIssues {
+			fmt.Printf("   - ID: %d\n", val.Id)
+			fmt.Printf("   - Link: %s\n", val.ErrorReportUrl)
+			fmt.Printf("   - Issue type: %s\n", val.IssueType)
+			fmt.Printf("   - Error message: %s\n", val.ErrorMessage)
+			fmt.Printf("   - Description: %s\n", val.Description)
+		}
 	}
 }
 
 func printImportResults(nimport newImport) {
 	fmt.Printf(
 		"\nMigration ID is %d\n",
-		nimport.Migration_id,
+		nimport.MigrationId,
 	)
 }
