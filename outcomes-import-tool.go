@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const ConfigFile string = ".outcomes-import.conf"
+const ConfigFile string = ".outcomes-import-tool.json"
 
 type config struct {
 	Apikey      string `json:"apikey"`
