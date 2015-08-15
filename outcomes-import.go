@@ -198,8 +198,7 @@ func print_migration_status(mstatus migration_status) {
 
 func print_import_results(nimport new_import) {
 	fmt.Printf(
-    "Migration for %s scheduled with migration ID %d",
-    nimport.Guid,
+    "\nMigration ID is %d\n",
     nimport.Migration_id,
   )
 }
