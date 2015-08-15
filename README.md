@@ -2,6 +2,10 @@
 
 The Outcomes Import Tool (OIT) can be used to easily schedule the import of outcomes from Academic Benchmark into [Canvas LMS](https://github.com/instructure/canvas-lms).  At this time, only site administrators have permission to do this.  There are various technical reasons for this.  If you have questions, or would like to have outcomes imported into your account, please contact Instructure support or your customer service representative.
 
+To install:
+
+    go get github.com/FreedomBen/outcomes-import-tool
+
 **This is not an officially supported tool by Instructure**
 
 Usage is simple.  You must provide the tool with a [Canvas API key](https://canvas.instructure.com/doc/api/file.oauth.html), and then tell it what to do.  The default action is to check the status of the most recent import.  OIT knows the Migration ID of the most recent import because it saves it in a json file located at `$HOME/outcomes-import-tool.json`.
