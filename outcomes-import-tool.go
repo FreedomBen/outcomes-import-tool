@@ -194,7 +194,7 @@ func getAvailable(req request) []importableGuid {
 	defer resp.Body.Close()
 	var guids []importableGuid
 	if e := json.NewDecoder(resp.Body).Decode(&guids); e != nil {
-		log.Fatalln(e)
+		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	return guids
 }
@@ -218,7 +218,7 @@ func getStatus(req request, migrationId int) {
 
 	var mstatus migrationStatus
 	if e := json.NewDecoder(resp.Body).Decode(&mstatus); e != nil {
-		log.Fatalln(e)
+		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	printMigrationStatus(mstatus)
 	(&config{
@@ -253,7 +253,7 @@ func importGuid(req request, guid string) {
 
 	var nimport newImport
 	if e := json.NewDecoder(resp.Body).Decode(&nimport); e != nil {
-		log.Fatalln(e)
+		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	printImportResults(nimport)
 	(&config{
