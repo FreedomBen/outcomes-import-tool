@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -74,7 +75,7 @@ func (c *config) writeToFile() {
 	if err != nil {
 		log.Fatalln("Error writing to", configFile())
 	}
-	ioutil.WriteFile(configFile(), b, 0700)
+	ioutil.WriteFile(configFile(), b, 0600)
 }
 
 func configFile() string {
@@ -86,7 +87,7 @@ func main() {
 	var domain = flag.String(
 		"domain",
 		"",
-		"The domain.  You can just say the school name if they have a vanity domain, like 'utah' for 'utah.instructure.com' or 'localhost'",
+		"The domain.  You can just say the school name if they have a \"<school>.instructure.com\" domain, or 'localhost'",
 	)
 	var status = flag.Int("status", 0, "migration ID to check status")
 	var available = flag.Bool("available", false, "Check available migration IDs")
@@ -137,18 +138,18 @@ func normalizeDomain(domain string) string {
 	return strings.TrimSuffix(retval, "/")
 }
 
-func errAndExit(message string) {
-	flag.Usage()
-	log.Fatalln(message)
+func errAndExit(message ...interface{}) {
+	// flag.Usage()
+	log.Fatalln(message...)
 	os.Exit(1)
 }
 
 func verifyRequest(req *request) {
 	if req.Apikey == "" {
-		errAndExit("You need a valid canvas API key")
+		errAndExit(fmt.Sprintf("Whoops, no API key stored in config file \"%s\" and none passed as an arg", configFile()))
 	}
 	if req.Domain == "" {
-		errAndExit("You must supply a canvas domain")
+		errAndExit(fmt.Sprintf("Whoops, no canvas domain stored in config file \"%s\" and none passed as an arg", configFile()))
 	}
 }
 
@@ -229,12 +230,21 @@ func getStatus(req request, migrationId int) {
 }
 
 func importGuid(req request, guid string) {
-	// first check to see if we've been given a title
-	guids := getAvailable(req)
-	for _, val := range guids {
-		if val.Title == guid {
-			guid = val.Guid
-			break
+	// first check to see if what we've been passed is a proper GUID
+	match, _ := regexp.MatchString(
+		"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
+		guid,
+	)
+
+	if !match {
+		log.Println("GUID is not valid.  Checking to see if it matches a valid title...")
+		// then check to see if we've been given a title
+		guids := getAvailable(req)
+		for _, val := range guids {
+			if val.Title == guid {
+				guid = val.Guid
+				break
+			}
 		}
 	}
 
@@ -253,7 +263,7 @@ func importGuid(req request, guid string) {
 
 	var nimport newImport
 	if e := json.NewDecoder(resp.Body).Decode(&nimport); e != nil {
-		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
+		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes.", e)
 	}
 	printImportResults(nimport)
 	(&config{
