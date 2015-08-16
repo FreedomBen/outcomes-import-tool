@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -46,11 +47,21 @@ type migrationStatus struct {
 	WorkflowState        string           `json:"workflow_state"`
 	MigrationIssuesCount int              `json:"migration_issues_count"`
 	MigrationIssues      []migrationIssue `json:"migration_issues"`
+	Errors               []apiError       `json:"errors"`
 }
 
 type newImport struct {
-	MigrationId int    `json:"migration_id"`
-	Guid        string `json:"guid"`
+	MigrationId int        `json:"migration_id"`
+	Guid        string     `json:"guid"`
+	Errors      []apiError `json:"errors"`
+}
+
+type apiErrors struct {
+	Errors []apiError `json:"errors"`
+}
+
+type apiError struct {
+	Message string `json:"message"`
 }
 
 func configFromFile() *config {
@@ -192,9 +203,17 @@ func getAvailable(req request) []importableGuid {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var errs apiErrors
+	if json.NewDecoder(bytes.NewReader(body)).Decode(&errs); len(errs.Errors) > 0 {
+		printErrors(errs.Errors)
+		os.Exit(1)
+	}
+
 	var guids []importableGuid
-	if e := json.NewDecoder(resp.Body).Decode(&guids); e != nil {
+	if e := json.NewDecoder(bytes.NewReader(body)).Decode(&guids); e != nil {
 		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	return guids
@@ -281,26 +300,38 @@ func printImportableGuids(guids []importableGuid) {
 }
 
 func printMigrationStatus(mstatus migrationStatus) {
-	if mstatus.Id == 0 {
-		fmt.Println("\nThe server returned an error.  Are you sure that migration ID exists?")
+	if len(mstatus.Errors) > 0 {
+		printErrors(mstatus.Errors)
 	} else {
-		fmt.Printf("\nMigration status for migration '%d':\n", mstatus.Id)
-		fmt.Printf(" - Workflow state: %s\n", mstatus.WorkflowState)
-		fmt.Printf(" - Migration issues count: %d\n", mstatus.MigrationIssuesCount)
-		fmt.Printf(" - Migration issues:\n")
-		for _, val := range mstatus.MigrationIssues {
-			fmt.Printf("   - ID: %d\n", val.Id)
-			fmt.Printf("   - Link: %s\n", val.ErrorReportUrl)
-			fmt.Printf("   - Issue type: %s\n", val.IssueType)
-			fmt.Printf("   - Error message: %s\n", val.ErrorMessage)
-			fmt.Printf("   - Description: %s\n", val.Description)
+		if mstatus.Id == 0 {
+			fmt.Println("\nThe server returned an error.  Are you sure that migration ID exists?")
+		} else {
+			fmt.Printf("\nMigration status for migration '%d':\n", mstatus.Id)
+			fmt.Printf(" - Workflow state: %s\n", mstatus.WorkflowState)
+			fmt.Printf(" - Migration issues count: %d\n", mstatus.MigrationIssuesCount)
+			fmt.Printf(" - Migration issues:\n")
+			for _, val := range mstatus.MigrationIssues {
+				fmt.Printf("   - ID: %d\n", val.Id)
+				fmt.Printf("   - Link: %s\n", val.ErrorReportUrl)
+				fmt.Printf("   - Issue type: %s\n", val.IssueType)
+				fmt.Printf("   - Error message: %s\n", val.ErrorMessage)
+				fmt.Printf("   - Description: %s\n", val.Description)
+			}
 		}
 	}
 }
 
 func printImportResults(nimport newImport) {
-	fmt.Printf(
-		"\nMigration ID is %d\n",
-		nimport.MigrationId,
-	)
+	if len(nimport.Errors) > 0 {
+		printErrors(nimport.Errors)
+	} else {
+		fmt.Printf("\nMigration ID is %d\n", nimport.MigrationId)
+	}
+}
+
+func printErrors(errors []apiError) {
+	fmt.Println("\nErrors encountered:")
+	for _, err := range errors {
+		fmt.Println(err)
+	}
 }
