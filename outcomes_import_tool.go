@@ -54,6 +54,7 @@ type newImport struct {
 	MigrationId int        `json:"migration_id"`
 	Guid        string     `json:"guid"`
 	Errors      []apiError `json:"errors"`
+	Error       string     `json:"errors"`
 }
 
 type apiErrors struct {
@@ -322,8 +323,11 @@ func printMigrationStatus(mstatus migrationStatus) {
 }
 
 func printImportResults(nimport newImport) {
+	log.Println(nimport)
 	if len(nimport.Errors) > 0 {
 		printErrors(nimport.Errors)
+	} else if nimport.Error != "" {
+		fmt.Printf("\nError: %s\n", nimport.Error)
 	} else {
 		fmt.Printf("\nMigration ID is %d\n", nimport.MigrationId)
 	}
