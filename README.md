@@ -12,6 +12,8 @@ Usage is simple.  You must provide the tool with a [Canvas API key](https://canv
 
 You must also provide it with a Canvas domain.  For a school that has "<school-name>.instructure.com", you can simply provide the school name.  You can also simply say "localhost" if you have a local development server running on port 3000.  The domain only needs to be passed the first time you use the tool, or when you want to change domains.  OIT remembers the last domain automatically for you.
 
+Once you have queried the available GUIDs, they will be stored in the aforementioned json file.  This greatly speeds up import requests when requested by name instead of GUID.  It also makes it possible to schedule an import by name when offline or on a non-whitelisted IP address (such as when conducting local testing).
+
 Example to check status:
   
     outcomes-import-tool --apikey="MyKey" --domain localhost
