@@ -16,9 +16,10 @@ import (
 const ConfigFile string = ".outcomes-import-tool.json"
 
 type config struct {
-	Apikey      string `json:"apikey"`
-	MigrationId int    `json:"migration_id"`
-	Domain      string `json:"domain"`
+	Apikey      string           `json:"apikey"`
+	MigrationId int              `json:"migration_id"`
+	Domain      string           `json:"domain"`
+	Guids       []importableGuid `json:"guids"`
 }
 
 type request struct {
@@ -190,6 +191,7 @@ func printAvailable(req request) {
 		Apikey:      req.Apikey,
 		Domain:      req.Domain,
 		MigrationId: migId,
+		Guids:       guids,
 	}).writeToFile()
 }
 
@@ -242,10 +244,12 @@ func getStatus(req request, migrationId int) {
 		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	printMigrationStatus(mstatus)
+	prevConfig := configFromFile()
 	(&config{
 		Apikey:      req.Apikey,
 		Domain:      req.Domain,
 		MigrationId: migrationId,
+		Guids:       prevConfig.Guids,
 	}).writeToFile()
 }
 
@@ -259,7 +263,15 @@ func importGuid(req request, guid string) {
 	if !match {
 		log.Println("GUID is not valid.  Checking to see if it matches a valid title...")
 		// then check to see if we've been given a title
-		guids := getAvailable(req)
+		config := configFromFile()
+		var guids []importableGuid
+		if len(config.Guids) > 0 {
+			log.Println("Using cached guid from config file")
+			guids = config.Guids
+		} else {
+			log.Println("Cache file does not contain guids.  Fetching guids from AB")
+			guids = getAvailable(req)
+		}
 		for _, val := range guids {
 			if val.Title == guid {
 				guid = val.Guid
@@ -286,10 +298,12 @@ func importGuid(req request, guid string) {
 		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes.", e)
 	}
 	printImportResults(nimport)
+	prevConfig := configFromFile()
 	(&config{
 		Apikey:      req.Apikey,
 		Domain:      req.Domain,
 		MigrationId: nimport.MigrationId,
+		Guids:       prevConfig.Guids,
 	}).writeToFile()
 }
 
