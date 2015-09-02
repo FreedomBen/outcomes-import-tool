@@ -5,6 +5,7 @@ The Outcomes Import Tool (OIT) can be used to easily schedule the import of outc
 To install:
 
     go get github.com/FreedomBen/outcomes-import-tool
+    go install outcomes-import-tool
 
 **This is not an officially supported tool by Instructure**
 
