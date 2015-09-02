@@ -152,7 +152,7 @@ func normalizeDomain(domain string) string {
 }
 
 func errAndExit(message ...interface{}) {
-	// flag.Usage()
+	flag.Usage()
 	log.Fatalln(message...)
 	os.Exit(1)
 }
