@@ -109,7 +109,7 @@ func main() {
 
 	if flag.Arg(0) != "" && (flag.Arg(0) == "--help" || flag.Arg(0) == "-h") {
 		flag.Usage()
-		return
+		os.exit(0)
 	}
 
 	if cf := configFromFile(); cf != nil {
