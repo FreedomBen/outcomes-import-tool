@@ -74,8 +74,17 @@ func configFromFile() *config {
 		}
 		return &cf
 	} else {
+		if match, _ := regexp.MatchString("no such file or directory", err.Error()); match {
+			writeBlankConfigFile()
+		}
 		return nil
 	}
+}
+
+func writeBlankConfigFile() {
+	c := &config{}
+	b, _ := json.MarshalIndent(*c, "", "  ")
+	ioutil.WriteFile(configFile(), b, 0600)
 }
 
 func (c *config) writeToFile() {
