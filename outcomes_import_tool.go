@@ -264,6 +264,7 @@ func getStatus(req request, migrationId int) {
 
 func importGuid(req request, guid string) {
 	// first check to see if what we've been passed is a proper GUID
+	guid = strings.ToUpper(guid)
 	match, _ := regexp.MatchString(
 		"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}",
 		guid,
@@ -281,11 +282,16 @@ func importGuid(req request, guid string) {
 			log.Println("Cache file does not contain guids.  Fetching guids from AB")
 			guids = getAvailable(req)
 		}
+		found := false
 		for _, val := range guids {
-			if val.Title == guid {
+			if strings.ToUpper(val.Title) == guid {
 				guid = val.Guid
+				found = true
 				break
 			}
+		}
+		if !found {
+			log.Fatalln(fmt.Sprintf("\"%s\" is not a valid AB GUID and it did not match any titles", guid))
 		}
 	}
 
