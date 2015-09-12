@@ -116,9 +116,9 @@ func main() {
 	var guid = flag.String("guid", "", "GUID to schedule for import")
 	flag.Parse()
 
-	if flag.Arg(0) != "" && (flag.Arg(0) == "--help" || flag.Arg(0) == "-h") {
+	if m, _ := regexp.MatchString("-h(|elp)$", flag.Arg(0)); m {
 		flag.Usage()
-		os.exit(0)
+		os.Exit(0)
 	}
 
 	if cf := configFromFile(); cf != nil {
