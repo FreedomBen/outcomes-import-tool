@@ -116,6 +116,11 @@ func main() {
 	var guid = flag.String("guid", "", "GUID to schedule for import")
 	flag.Parse()
 
+	if flag.Arg(0) != "" && (flag.Arg(0) == "--help" || flag.Arg(0) == "-h") {
+		flag.Usage()
+		os.exit(0)
+	}
+
 	if cf := configFromFile(); cf != nil {
 		if *apikey == "" {
 			log.Println("Using API key from config file")
