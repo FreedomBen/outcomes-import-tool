@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
@@ -69,11 +68,21 @@ type apiError struct {
 	Message string `json:"message"`
 }
 
+func fatalExit(message ...interface{}) {
+	errmessage := make([]interface{}, len(message)+1)
+	errmessage[0] = "[-]"
+	for i, m := range message {
+		errmessage[i+1] = m
+	}
+	fmt.Fprintln(os.Stderr, errmessage...)
+	os.Exit(1)
+}
+
 func configFromFile() *config {
 	if f, err := os.Open(configFile()); err == nil {
 		var cf config
 		if err := json.NewDecoder(f).Decode(&cf); err != nil {
-			log.Fatalln("Config file json error:", err)
+			fatalExit("Config file json error:", err)
 		}
 		return &cf
 	} else {
@@ -98,7 +107,7 @@ func (c *config) writeToFile() {
 	}
 	b, err := json.MarshalIndent(*c, "", "  ")
 	if err != nil {
-		log.Fatalln("Error writing to", configFile())
+		fatalExit("Error writing to", configFile())
 	}
 	ioutil.WriteFile(configFile(), b, 0600)
 }
@@ -122,7 +131,7 @@ func main() {
 	flag.Parse()
 
 	if *version {
-		fmt.Println("Outcomes Import Tool Version: ", Version)
+		fmt.Println("[+] Outcomes Import Tool Version: ", Version)
 		os.Exit(0)
 	}
 
@@ -133,15 +142,15 @@ func main() {
 
 	if cf := configFromFile(); cf != nil {
 		if *apikey == "" {
-			log.Println("Using API key from config file")
+			fmt.Println("[+] Using API key from config file")
 			apikey = &cf.Apikey
 		}
 		if *status == 0 {
-			log.Println("Using migration ID from config file")
+			fmt.Println("[+] Using migration ID from config file")
 			status = &cf.MigrationId
 		}
 		if *domain == "" {
-			log.Println("Using domain from config file")
+			fmt.Println("[+] Using domain from config file")
 			domain = &cf.Domain
 		}
 	}
@@ -157,7 +166,7 @@ func main() {
 	} else if *status != 0 {
 		getStatus(req, *status)
 	} else {
-		log.Fatalln("No recent migration ID, and none specified to query status on")
+		fatalExit("No recent migration ID, and none specified to query status on")
 	}
 }
 
@@ -177,8 +186,7 @@ func normalizeDomain(domain string) string {
 
 func errAndExit(message ...interface{}) {
 	flag.Usage()
-	log.Fatalln(message...)
-	os.Exit(1)
+	fatalExit(message...)
 }
 
 func verifyRequest(req *request) {
@@ -198,7 +206,7 @@ func httpRequest(req request) (*http.Client, *http.Request) {
 		strings.NewReader(req.Body),
 	)
 	if err != nil {
-		log.Fatalln(err)
+		fatalExit(err)
 	}
 	hreq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", req.Apikey))
 	return client, hreq
@@ -225,10 +233,10 @@ func getAvailable(req request) []importableGuid {
 	req.Endpoint = "/api/v1/global/outcomes_import/available"
 
 	client, hreq := httpRequest(req)
-	log.Printf("Requesting available guids from %s", hreq.URL)
+	fmt.Printf("[+] Requesting available guids from %s", hreq.URL)
 	resp, err := client.Do(hreq)
 	if err != nil {
-		log.Fatalln(err)
+		fatalExit(err)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
@@ -241,7 +249,7 @@ func getAvailable(req request) []importableGuid {
 
 	var guids []importableGuid
 	if e := json.NewDecoder(bytes.NewReader(body)).Decode(&guids); e != nil {
-		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
+		fatalExit("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	return guids
 }
@@ -256,16 +264,16 @@ func getStatus(req request, migrationId int) {
 
 	client, hreq := httpRequest(req)
 
-	log.Printf("Retrieving status for migration %d", migrationId)
+	fmt.Printf("[+] Retrieving status for migration %d\n", migrationId)
 	resp, err := client.Do(hreq)
 	if err != nil {
-		log.Fatalln(err)
+		fatalExit(err)
 	}
 	defer resp.Body.Close()
 
 	var mstatus migrationStatus
 	if e := json.NewDecoder(resp.Body).Decode(&mstatus); e != nil {
-		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
+		fatalExit("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes", e)
 	}
 	printMigrationStatus(mstatus)
 	prevConfig := configFromFile()
@@ -286,15 +294,15 @@ func importGuid(req request, guid string) {
 	)
 
 	if !match {
-		log.Println("GUID is not valid.  Checking to see if it matches a valid title...")
+		fmt.Println("[+] GUID is not valid.  Checking to see if it matches a valid title...")
 		// then check to see if we've been given a title
 		config := configFromFile()
 		var guids []importableGuid
 		if len(config.Guids) > 0 {
-			log.Println("Using cached guid from config file")
+			fmt.Println("[+] Using cached guid from config file")
 			guids = config.Guids
 		} else {
-			log.Println("Cache file does not contain guids.  Fetching guids from AB")
+			fmt.Println("[+] Cache file does not contain guids.  Fetching guids from AB")
 			guids = getAvailable(req)
 		}
 		found := false
@@ -306,7 +314,7 @@ func importGuid(req request, guid string) {
 			}
 		}
 		if !found {
-			log.Fatalln(fmt.Sprintf("\"%s\" is not a valid AB GUID and it did not match any titles", guid))
+			fatalExit(fmt.Sprintf("\"%s\" is not a valid AB GUID and it did not match any titles", guid))
 		}
 	}
 
@@ -316,16 +324,16 @@ func importGuid(req request, guid string) {
 
 	client, hreq := httpRequest(req)
 
-	log.Printf("Requesting import of GUID %s", guid)
+	fmt.Printf("[+] Requesting import of GUID %s", guid)
 	resp, err := client.Do(hreq)
 	if err != nil {
-		log.Fatalln(err)
+		fatalExit(err)
 	}
 	defer resp.Body.Close()
 
 	var nimport newImport
 	if e := json.NewDecoder(resp.Body).Decode(&nimport); e != nil {
-		log.Fatalln("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes.", e)
+		fatalExit("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes.", e)
 	}
 	printImportResults(nimport)
 	prevConfig := configFromFile()
@@ -367,18 +375,18 @@ func printMigrationStatus(mstatus migrationStatus) {
 }
 
 func printImportResults(nimport newImport) {
-	log.Println(nimport)
+	fmt.Println(nimport)
 	if len(nimport.Errors) > 0 {
 		printErrors(nimport.Errors)
 	} else if nimport.Error != "" {
-		fmt.Printf("\nError: %s\n", nimport.Error)
+		fmt.Printf("\n[-] Error: %s\n", nimport.Error)
 	} else {
-		fmt.Printf("\nMigration ID is %d\n", nimport.MigrationId)
+		fmt.Printf("\n[+] Migration ID is %d\n", nimport.MigrationId)
 	}
 }
 
 func printErrors(errors []apiError) {
-	fmt.Println("\nErrors encountered:")
+	fmt.Println("\n[-] Errors encountered:")
 	for _, err := range errors {
 		fmt.Println(err)
 	}
