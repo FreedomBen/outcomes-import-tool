@@ -2,7 +2,7 @@
 
 The Outcomes Import Tool (OIT) can be used to easily schedule the import of outcomes from Academic Benchmark into [Canvas LMS](https://github.com/instructure/canvas-lms).  At this time, only site administrators have permission to do this.  There are various technical reasons for this.  If you have questions, or would like to have outcomes imported into your account, please contact Instructure support or your customer service representative.
 
-To Download:
+**To Download:**
 
 Choose the appropriate pre-built binary:
 
@@ -12,7 +12,7 @@ Choose the appropriate pre-built binary:
 
 *Older versions are available at https://github.com/FreedomBen/outcomes-import-tool-bins.  These are all 64-bit binaries.*
 
-To install from source (assuming your Go environment is already set up):
+**To install from source (assuming your Go environment is already set up):**
 
     go get github.com/FreedomBen/outcomes-import-tool
     go install outcomes-import-tool
