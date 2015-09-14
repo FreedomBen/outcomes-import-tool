@@ -13,7 +13,10 @@ import (
 	"strings"
 )
 
-const ConfigFile string = ".outcomes-import-tool.json"
+const (
+	Version    string = "0.0.1"
+	ConfigFile string = ".outcomes-import-tool.json"
+)
 
 type config struct {
 	Apikey      string           `json:"apikey"`
@@ -114,10 +117,17 @@ func main() {
 	var status = flag.Int("status", 0, "migration ID to check status")
 	var available = flag.Bool("available", false, "Check available migration IDs")
 	var guid = flag.String("guid", "", "GUID to schedule for import")
+	var help = flag.Bool("help", false, "Print the help menu and exit")
+	var version = flag.Bool("version", false, "Print the version and exit")
 	flag.Parse()
 
-	if m, _ := regexp.MatchString("-h(|elp)$", flag.Arg(0)); m {
-		flag.Usage()
+	if *version {
+		fmt.Println("Outcomes Import Tool Version: ", Version)
+		os.Exit(0)
+	}
+
+	if *help {
+		printHelp()
 		os.Exit(0)
 	}
 
@@ -372,4 +382,66 @@ func printErrors(errors []apiError) {
 	for _, err := range errors {
 		fmt.Println(err)
 	}
+}
+
+func printHelp() {
+	fmt.Println(`
+-- Outcomes Import Tool (OIT) --
+
+The Outcomes Import Tool (OIT) can be used to easily schedule the import of outcomes
+from Academic Benchmark into Canvas LMS.
+
+At this time, only site administrators have permission to do this.  There are various
+technical reasons for this.  If you have questions, or would like to have outcomes
+imported into your account, please contact Instructure support or your customer
+service representative.
+
+To install:
+
+    go get github.com/FreedomBen/outcomes-import-tool
+    go install outcomes-import-tool
+
+**This is not an officially supported tool by Instructure**
+
+Usage is simple.  You must provide the tool with a Canvas API key, and then tell it
+what to do.  The default action is to check the status of the most recent import.
+OIT knows the Migration ID of the most recent import because it saves it in a json
+file located at $HOME/outcomes-import-tool.json.
+
+You must also provide it with a Canvas domain.  For a school that has
+"<school-name>.instructure.com", you can simply provide the school name.  You can also
+simply say "localhost" if you have a local development server running on port 3000.
+The domain only needs to be passed the first time you use the tool, or when you want
+to change domains.  OIT remembers the last domain automatically for you.
+
+Once you have queried the available GUIDs, they will be stored in the aforementioned
+json file.  This greatly speeds up import requests when requested by name instead of
+GUID.  It also makes it possible to schedule an import by name when offline or on a
+non-whitelisted IP address (such as when conducting local testing).
+
+Example to check status:
+
+    outcomes-import-tool --apikey="MyKey" --domain localhost
+
+Example to check status with specified ID of 35 (which becomes the new default)
+
+    outcomes-import-tool --apikey="MyKey" --status 35
+
+Example to import a GUID.  This can be specified by Title from the list of available
+GUIDs, or by GUID itself.  By title for Iowa standards:
+
+    outcomes-import-tool --apikey="MyKey" --guid "Iowa"
+
+By GUID:
+
+    outcomes-import-tool --apikey="MyKey" --guid "A832FC24-901A-11DF-A622-0C319DFF4B22"
+
+Example to list available GUIDs and their Titles:
+
+    outcomes-import-tool --apikey="MyKey" --available
+
+If you want, you can put your API key in the json file and you won't have to specify
+it each time.  Be advised though, *this file is stored in plain-text in your home
+directory*.  Use this for test instances of Canvas, but *it is not safe to do so with
+a production system key*.`)
 }
