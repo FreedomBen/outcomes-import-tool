@@ -299,7 +299,7 @@ func importGuid(req request, guid string) {
 		config := configFromFile()
 		var guids []importableGuid
 		if len(config.Guids) > 0 {
-			fmt.Println("[+] Using cached guid from config file")
+			fmt.Println("[+] Using cached guid from config file.  Run tool with --available option to force refresh of GUIDs")
 			guids = config.Guids
 		} else {
 			fmt.Println("[+] Cache file does not contain guids.  Fetching guids from AB")
