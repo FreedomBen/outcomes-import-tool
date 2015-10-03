@@ -324,17 +324,24 @@ func importGuid(req request, guid string) {
 
 	client, hreq := httpRequest(req)
 
-	fmt.Printf("[+] Requesting import of GUID %s", guid)
+	fmt.Printf("[+] Requesting import of GUID %s\n", guid)
 	resp, err := client.Do(hreq)
 	if err != nil {
 		fatalExit(err)
 	}
-	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
 
 	var nimport newImport
-	if e := json.NewDecoder(resp.Body).Decode(&nimport); e != nil {
+	if e := json.NewDecoder(bytes.NewReader(body)).Decode(&nimport); e != nil {
 		fatalExit("JSON decoding error.  Make sure your API key is correct and that you have permission to read global outcomes.", e)
 	}
+	if nimport.MigrationId == 0 && len(nimport.Errors) == 0 {
+		fmt.Println("[-] Ruh-roh, server error:\n", string(body))
+		os.Exit(1)
+	}
+
 	printImportResults(nimport)
 	prevConfig := configFromFile()
 	(&config{
