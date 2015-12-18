@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Version    string = "0.0.2"
+	Version    string = "0.0.3"
 	ConfigFile string = ".outcomes-import-tool.json"
 )
 
@@ -70,7 +70,7 @@ type apiError struct {
 
 func fatalExit(message ...interface{}) {
 	errmessage := make([]interface{}, len(message)+1)
-	errmessage[0] = "[-]"
+	errmessage[0] = "\n\n[-]"
 	for i, m := range message {
 		errmessage[i+1] = m
 	}
