@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Version    string = "0.0.3"
+	Version    string = "0.0.4"
 	ConfigFile string = ".outcomes-import-tool.json"
 )
 
@@ -33,8 +33,9 @@ type request struct {
 }
 
 type importableGuid struct {
-	Title string `json:"title"`
-	Guid  string `json:"guid"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Guid        string `json:"guid"`
 }
 
 type migrationIssue struct {
@@ -355,7 +356,11 @@ func importGuid(req request, guid string) {
 func printImportableGuids(guids []importableGuid) {
 	fmt.Printf("GUIDs available to import:\n\n")
 	for _, guid := range guids {
-		fmt.Printf("%s - %s\n", guid.Guid, guid.Title)
+		if guid.Title == "" {
+			fmt.Printf("%s - %s\n", guid.Guid, guid.Description)
+		} else {
+			fmt.Printf("%s - %s\n", guid.Guid, guid.Title)
+		}
 	}
 }
 
