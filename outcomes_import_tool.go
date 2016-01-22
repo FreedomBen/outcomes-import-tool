@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	Version    string = "0.0.4"
+	Version    string = "1.0.0"
 	ConfigFile string = ".outcomes-import-tool.json"
 )
 
