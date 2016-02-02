@@ -308,7 +308,7 @@ func importGuid(req request, guid string) {
 		}
 		found := false
 		for _, val := range guids {
-			if strings.ToUpper(val.Title) == guid {
+			if strings.ToUpper(val.Title) == guid || strings.ToUpper(val.Description) == guid {
 				guid = val.Guid
 				found = true
 				break
