@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -117,6 +120,32 @@ func configFile() string {
 	return fmt.Sprintf("%s/%s", os.Getenv("HOME"), ConfigFile)
 }
 
+type Rating struct {
+	points int
+	description string
+}
+
+type Ratings []Rating
+
+func (r *Ratings) String() string {
+	return fmt.Sprint(*r)
+}
+
+func (r *Ratings) Set(value string) error {
+	var parts = strings.SplitN(value, ",", 2)
+	if len(parts) == 1 {
+		return errors.New("Missing required comma")
+	}
+	var points, err = strconv.Atoi(parts[0])
+	if err != nil {
+		return errors.New("Invalid points value")
+	}
+	*r = append(*r, Rating{points: points, description: parts[1]})
+	return nil
+}
+
+var ratingsFlag Ratings
+
 func main() {
 	var apikey = flag.String("apikey", "", "Canvas API key")
 	var domain = flag.String(
@@ -127,6 +156,13 @@ func main() {
 	var status = flag.Int("status", 0, "migration ID to check status")
 	var available = flag.Bool("available", false, "Check available migration IDs")
 	var guid = flag.String("guid", "", "GUID to schedule for import")
+	var calcMethod = flag.String("calculation_method", "", "Valid calculation method (e.g. 'decaying_average', 'n_mastery', 'latest', 'highest')")
+	var calcInt = flag.Int("calculation_int", 0, "Only applies if the calculation_method is 'decaying_average' or 'n_mastery'")
+	var masteryPoints = flag.Int("mastery_points", 0, "The mastery threshold for the embedded rubric criterion")
+	var pointsPossible = flag.Int("points_possible", 0, "The total number of points possible")
+	flag.Var(&ratingsFlag, "ratings", "Ratings in the form of \"points,description\". This can be used multiple times" +
+		" (e.g. -ratings \"5,Exceeds Expectations\" -ratings \"3,Meets Expectations\" -ratings \"0,Does Not Meet Expectations\")." +
+		" The order of the ratings is preserved.")
 	var help = flag.Bool("help", false, "Print the help menu and exit")
 	var version = flag.Bool("version", false, "Print the version and exit")
 	flag.Parse()
@@ -163,7 +199,7 @@ func main() {
 	if *available {
 		printAvailable(req)
 	} else if *guid != "" {
-		importGuid(req, *guid)
+		importGuid(req, *guid, *calcMethod, *calcInt, *masteryPoints, *pointsPossible, ratingsFlag)
 	} else if *status != 0 {
 		getStatus(req, *status)
 	} else {
@@ -286,7 +322,7 @@ func getStatus(req request, migrationId int) {
 	}).writeToFile()
 }
 
-func importGuid(req request, guid string) {
+func importGuid(req request, guid string, calcMethod string, calcInt int, masteryPoints int, pointsPossible int, ratings Ratings) {
 	// first check to see if what we've been passed is a proper GUID
 	guid = strings.ToUpper(guid)
 	match, _ := regexp.MatchString(
@@ -319,7 +355,44 @@ func importGuid(req request, guid string) {
 		}
 	}
 
-	req.Body = fmt.Sprintf("guid=%s", guid)
+	if len(calcMethod) == 0 {
+		if calcInt != 0 {
+			fatalExit(fmt.Sprintf("calcInt \"%d\" cannot be specified without calcMethod", calcInt))
+		}
+	}
+
+    // Manually constructing POST body instead of using url.Values because
+    // url.Values doesn't preserve the order of HTTP parameters added,
+    // and we need that when including "ratings" parameter values.
+	var buffer bytes.Buffer
+	buffer.WriteString("guid=")
+	buffer.WriteString(url.QueryEscape(guid))
+	if len(calcMethod) > 0 {
+		buffer.WriteString("&calculation_method=")
+		buffer.WriteString(url.QueryEscape(calcMethod))
+		if calcInt != 0 {
+			buffer.WriteString("&calculation_int=")
+			buffer.WriteString(strconv.Itoa(calcInt))
+		}
+	}
+	if masteryPoints != 0 {
+		buffer.WriteString("&mastery_points=")
+		buffer.WriteString(strconv.Itoa(masteryPoints))
+	}
+	if pointsPossible != 0 {
+		buffer.WriteString("&points_possible=")
+		buffer.WriteString(strconv.Itoa(pointsPossible))
+	}
+	if (ratings != nil) {
+		for _,rating := range ratings {
+			buffer.WriteString("&ratings[][description]=")
+			buffer.WriteString(url.QueryEscape(rating.description))
+			buffer.WriteString("&ratings[][points]=")
+			buffer.WriteString(strconv.Itoa(rating.points))
+		}
+	}
+
+	req.Body = buffer.String()
 	req.Method = "POST"
 	req.Endpoint = "/api/v1/global/outcomes_import/"
 
