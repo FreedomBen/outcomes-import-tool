@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	Version    string = "1.0.0"
+	Version    string = "1.1.0"
 	ConfigFile string = ".outcomes-import-tool.json"
 )
 
@@ -121,7 +121,7 @@ func configFile() string {
 }
 
 type Rating struct {
-	points int
+	points      int
 	description string
 }
 
@@ -160,8 +160,8 @@ func main() {
 	var calcInt = flag.Int("calculation_int", 0, "Only applies if the calculation_method is 'decaying_average' or 'n_mastery'")
 	var masteryPoints = flag.Int("mastery_points", 0, "The mastery threshold for the embedded rubric criterion")
 	var pointsPossible = flag.Int("points_possible", 0, "The total number of points possible")
-	flag.Var(&ratingsFlag, "ratings", "Ratings in the form of \"points,description\". This can be used multiple times" +
-		" (e.g. -ratings \"5,Exceeds Expectations\" -ratings \"3,Meets Expectations\" -ratings \"0,Does Not Meet Expectations\")." +
+	flag.Var(&ratingsFlag, "ratings", "Ratings in the form of \"points,description\". This can be used multiple times"+
+		" (e.g. -ratings \"5,Exceeds Expectations\" -ratings \"3,Meets Expectations\" -ratings \"0,Does Not Meet Expectations\")."+
 		" The order of the ratings is preserved.")
 	var help = flag.Bool("help", false, "Print the help menu and exit")
 	var version = flag.Bool("version", false, "Print the version and exit")
@@ -361,9 +361,9 @@ func importGuid(req request, guid string, calcMethod string, calcInt int, master
 		}
 	}
 
-    // Manually constructing POST body instead of using url.Values because
-    // url.Values doesn't preserve the order of HTTP parameters added,
-    // and we need that when including "ratings" parameter values.
+	// Manually constructing POST body instead of using url.Values because
+	// url.Values doesn't preserve the order of HTTP parameters added,
+	// and we need that when including "ratings" parameter values.
 	var buffer bytes.Buffer
 	buffer.WriteString("guid=")
 	buffer.WriteString(url.QueryEscape(guid))
@@ -383,8 +383,8 @@ func importGuid(req request, guid string, calcMethod string, calcInt int, master
 		buffer.WriteString("&points_possible=")
 		buffer.WriteString(strconv.Itoa(pointsPossible))
 	}
-	if (ratings != nil) {
-		for _,rating := range ratings {
+	if ratings != nil {
+		for _, rating := range ratings {
 			buffer.WriteString("&ratings[][description]=")
 			buffer.WriteString(url.QueryEscape(rating.description))
 			buffer.WriteString("&ratings[][points]=")

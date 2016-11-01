@@ -6,9 +6,9 @@ The Outcomes Import Tool (OIT) can be used to easily schedule the import of outc
 
 Choose the appropriate pre-built binary:
 
-- [V.1.0.0 | Linux (amd64)](https://github.com/FreedomBen/outcomes-import-tool-bins/blob/master/linux/1.0.0/outcomes-import-tool?raw=true)
-- [V.1.0.0 | OS X (darwin/amd64)](https://github.com/FreedomBen/outcomes-import-tool-bins/blob/master/osx/1.0.0/outcomes-import-tool?raw=true)
-- [V.1.0.0 | Windows (amd64)](https://github.com/FreedomBen/outcomes-import-tool-bins/blob/master/windows/1.0.0/outcomes-import-tool.exe?raw=true)
+- [V.1.1.0 | Linux (amd64)](https://github.com/FreedomBen/outcomes-import-tool-bins/blob/master/linux/1.1.0/outcomes-import-tool?raw=true)
+- [V.1.1.0 | OS X (darwin/amd64)](https://github.com/FreedomBen/outcomes-import-tool-bins/blob/master/osx/1.1.0/outcomes-import-tool?raw=true)
+- [V.1.1.0 | Windows (amd64)](https://github.com/FreedomBen/outcomes-import-tool-bins/blob/master/windows/1.1.0/outcomes-import-tool.exe?raw=true)
 
 *Older versions are available at https://github.com/FreedomBen/outcomes-import-tool-bins.  These are all 64-bit binaries.*
 
